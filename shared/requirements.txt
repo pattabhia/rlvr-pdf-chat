@@ -1,0 +1,11 @@
+# Shared dependencies for RLVR Platform
+
+# Event Bus
+pika==1.3.2
+
+# Data validation
+pydantic==2.5.0
+
+# Utilities
+python-dateutil==2.8.2
+

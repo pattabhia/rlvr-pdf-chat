@@ -1,0 +1,70 @@
+FROM runpod/pytorch:2.1.0-py3.10-cuda12.1.0-devel-ubuntu22.04
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    wget \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && \
+    sh get-docker.sh && \
+    rm get-docker.sh
+
+# Install Docker Compose
+RUN curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose
+
+# Install Ollama
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy project files
+COPY . /workspace/
+
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    fastapi==0.104.1 \
+    uvicorn[standard]==0.24.0 \
+    pydantic==2.5.0 \
+    pydantic-settings==2.1.0 \
+    sentence-transformers==2.7.0 \
+    qdrant-client==1.7.0 \
+    pdfplumber==0.10.3 \
+    pika==1.3.2 \
+    ollama==0.1.6 \
+    streamlit==1.29.0 \
+    requests==2.31.0 \
+    python-multipart==0.0.6 \
+    psycopg2-binary==2.9.9 \
+    torch \
+    transformers
+
+# Create data directories
+RUN mkdir -p /workspace/data/training_data /workspace/data/uploads
+
+# Expose all required ports
+EXPOSE 8501 8000 8001 8002 8005 8007 6333 11434 5672 15672 5432
+
+# Copy startup script
+COPY runpod_start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Set environment variables for GPU
+ENV OLLAMA_GPU_LAYERS=999
+ENV CUDA_VISIBLE_DEVICES=0
+ENV OLLAMA_HOST=0.0.0.0:11434
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8501 || exit 1
+
+CMD ["/start.sh"]
+
