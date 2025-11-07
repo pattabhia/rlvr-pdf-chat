@@ -2,6 +2,13 @@
 
 echo "🚀 Launching all RLVR services..."
 
+# Kill any conflicting services from RunPod base image
+echo "Stopping conflicting services..."
+pkill nginx || true
+pkill -f uvicorn || true
+pkill -f streamlit || true
+sleep 2
+
 # Set environment
 export PYTHONPATH=/workspace/rlvr-pdf-chat
 export RABBITMQ_URL=amqp://rlvr:rlvr_password@localhost:5672/
