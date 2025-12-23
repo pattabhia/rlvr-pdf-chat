@@ -27,6 +27,13 @@ export GROUND_TRUTH_SERVICE_URL=http://localhost:8007
 
 cd /workspace/rlvr-pdf-chat
 
+# Start Qdrant (vector database)
+echo "Starting Qdrant..."
+mkdir -p /workspace/qdrant_storage
+nohup qdrant > /tmp/qdrant.log 2>&1 &
+echo "Qdrant PID: $!"
+sleep 3
+
 # Install/upgrade all service dependencies to override RunPod base image packages
 echo "Installing service dependencies..."
 pip install --upgrade -r services/qa-orchestrator/requirements.txt
@@ -89,9 +96,10 @@ nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noh
 echo ""
 echo "🏥 Health checks:"
 sleep 5
+curl -sf http://localhost:6333/dashboard && echo "✅ Qdrant" || echo "❌ Qdrant"
+curl -sf http://localhost:11434/api/tags && echo "✅ Ollama" || echo "❌ Ollama"
 curl -sf http://localhost:8001/health && echo "✅ QA Orchestrator" || echo "❌ QA Orchestrator"
 curl -sf http://localhost:8000/health && echo "✅ API Gateway" || echo "❌ API Gateway"
 curl -sf http://localhost:8501 && echo "✅ Streamlit UI" || echo "❌ Streamlit UI"
-curl -sf http://localhost:11434/api/tags && echo "✅ Ollama" || echo "❌ Ollama"
 echo ""
 
