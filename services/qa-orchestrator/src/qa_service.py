@@ -106,11 +106,11 @@ class QAService:
         
         # Generate query embedding
         query_embedding = self.embeddings.embed_query(question)
-        
-        # Search Qdrant
-        search_result = self.qdrant_client.query_points(
+
+        # Search Qdrant (using search method for qdrant-client >= 1.8.0)
+        search_result = self.qdrant_client.search(
             collection_name=self.qdrant_collection,
-            query=query_embedding,
+            query_vector=query_embedding,
             limit=self.top_k,
             with_payload=True,
             with_vectors=False
