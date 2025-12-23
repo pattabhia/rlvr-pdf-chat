@@ -63,7 +63,25 @@ echo "API Gateway PID: $!"
 # Start Streamlit UI
 echo "Starting Streamlit UI..."
 cd /workspace/rlvr-pdf-chat/ui/streamlit
-PYTHONPATH=/workspace/rlvr-pdf-chat/ui/streamlit:/workspace/rlvr-pdf-chat nohup streamlit run src/app_simple.py --server.port=8501 --server.address=0.0.0.0 > /tmp/streamlit.log 2>&1 &
+
+# Create Streamlit config for RunPod proxy compatibility
+mkdir -p .streamlit
+cat > .streamlit/config.toml << 'EOF'
+[server]
+enableCORS = true
+enableWebsocketCompression = true
+enableXsrfProtection = false
+headless = true
+port = 8501
+address = "0.0.0.0"
+
+[browser]
+gatherUsageStats = false
+serverAddress = "0.0.0.0"
+serverPort = 8501
+EOF
+
+PYTHONPATH=/workspace/rlvr-pdf-chat/ui/streamlit:/workspace/rlvr-pdf-chat nohup streamlit run src/app_simple.py > /tmp/streamlit.log 2>&1 &
 echo "Streamlit UI PID: $!"
 
 sleep 10
