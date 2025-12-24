@@ -16,7 +16,7 @@ pypdf==3.17.4
 python-dotenv==1.0.0
 torch==2.9.1
 transformers==4.36.0
-numpy==2.0.2
+numpy>=1.23.2,<2.0.0
 plotly==5.18.0
 pandas==2.1.4
 
