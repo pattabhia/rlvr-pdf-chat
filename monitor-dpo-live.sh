@@ -28,12 +28,21 @@ echo ""
 echo "🆕 Latest DPO Pair Created:"
 echo "────────────────────────────────────────────────────────────────────────────"
 if [ -f "$DPO_FILE" ] && [ $total_pairs -gt 0 ]; then
-    latest_pair=$(tail -1 "$DPO_FILE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(f\"Question: {data['prompt'][:70]}...\nChosen Score: {data['chosen_score']:.3f} | Rejected Score: {data['rejected_score']:.3f} | Diff: {data['score_diff']:.3f}\nCreated: {data['metadata'].get('created_at', 'N/A')}\")" 2>/dev/null)
-    if [ $? -eq 0 ]; then
-        echo "$latest_pair"
-    else
-        echo "  (Unable to parse latest pair)"
-    fi
+    tail -1 "$DPO_FILE" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    prompt = data.get('prompt', 'N/A')[:70]
+    chosen_score = data.get('chosen_score', 0)
+    rejected_score = data.get('rejected_score', 0)
+    score_diff = data.get('score_diff', 0)
+    created_at = data.get('metadata', {}).get('created_at', 'N/A')
+    print(f'Question: {prompt}...')
+    print(f'Chosen Score: {chosen_score:.3f} | Rejected Score: {rejected_score:.3f} | Diff: {score_diff:.3f}')
+    print(f'Created: {created_at}')
+except Exception as e:
+    print(f'(Unable to parse: {e})')
+" 2>&1
 else
     echo "  (No DPO pairs created yet)"
 fi
@@ -58,11 +67,14 @@ if [ -z "$latest_analysis" ]; then
     echo "  (No DPO analysis yet)"
 else
     echo "$latest_analysis" | while read line; do
-        # Extract score diff and check if it passed
+        # Extract score diff and check if it passed (using awk instead of bc)
         score_diff=$(echo "$line" | grep -oP 'score diff: \K[0-9.]+')
         best_score=$(echo "$line" | grep -oP 'best=\K[0-9.]+')
-        
-        if (( $(echo "$score_diff >= 0.05" | bc -l) )) && (( $(echo "$best_score >= 0.6" | bc -l) )); then
+
+        # Use awk for floating point comparison (bc not available)
+        passed=$(awk -v diff="$score_diff" -v best="$best_score" 'BEGIN {print (diff >= 0.05 && best >= 0.6) ? "yes" : "no"}')
+
+        if [ "$passed" = "yes" ]; then
             echo "  ✅ $line"
         else
             echo "  ❌ $line"
