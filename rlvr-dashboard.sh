@@ -40,14 +40,14 @@ draw_box_bottom() {
 parse_pipeline_data() {
     # Extract questions from QA Orchestrator
     if [ -f "$LOG_DIR/qa-orchestrator.log" ]; then
-        tail -500 "$LOG_DIR/qa-orchestrator.log" | grep "Generating.*candidate answers for question" | tail -5 | while read line; do
+        tail -500 "$LOG_DIR/qa-orchestrator.log" 2>/dev/null | grep -a "Generating.*candidate answers for question" 2>/dev/null | tail -5 | while read line; do
             timestamp=$(echo "$line" | cut -d',' -f1 | sed 's/.*\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\).*/\1/')
             question=$(echo "$line" | sed 's/.*question: //' | sed 's/"//g')
             echo "QUESTION|$timestamp|$question"
         done
 
         # Extract published events (answer.generated) to show worker activity
-        tail -500 "$LOG_DIR/qa-orchestrator.log" | grep "Published event: answer.generated" | tail -10 | while read line; do
+        tail -500 "$LOG_DIR/qa-orchestrator.log" 2>/dev/null | grep -a "Published event: answer.generated" 2>/dev/null | tail -10 | while read line; do
             timestamp=$(echo "$line" | cut -d',' -f1 | sed 's/.*\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\).*/\1/')
             if [[ $line =~ id=([a-f0-9-]+) ]]; then
                 event_id="${BASH_REMATCH[1]}"
@@ -58,7 +58,7 @@ parse_pipeline_data() {
 
     # Extract verification results from verification worker
     if [ -f "$LOG_DIR/verification-worker.log" ]; then
-        tail -500 "$LOG_DIR/verification-worker.log" | grep "Verification complete" | tail -10 | while read line; do
+        tail -500 "$LOG_DIR/verification-worker.log" 2>/dev/null | grep -a "Verification complete" 2>/dev/null | tail -10 | while read line; do
             timestamp=$(echo "$line" | cut -d',' -f1 | sed 's/.*\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\).*/\1/')
 
             # Extract faithfulness score
@@ -81,7 +81,7 @@ parse_pipeline_data() {
         done
 
         # Extract verification.completed events
-        tail -500 "$LOG_DIR/verification-worker.log" | grep "Published event: verification.completed" | tail -5 | while read line; do
+        tail -500 "$LOG_DIR/verification-worker.log" 2>/dev/null | grep -a "Published event: verification.completed" 2>/dev/null | tail -5 | while read line; do
             timestamp=$(echo "$line" | cut -d',' -f1 | sed 's/.*\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\).*/\1/')
             if [[ $line =~ id=([a-f0-9-]+) ]]; then
                 event_id="${BASH_REMATCH[1]}"
@@ -93,7 +93,7 @@ parse_pipeline_data() {
     # Extract DPO pair generation from dataset worker
     if [ -f "$LOG_DIR/dataset-worker.log" ]; then
         # Look for DPO pair creation
-        tail -500 "$LOG_DIR/dataset-worker.log" | grep -iE "dpo|preference|chosen|rejected|pair" | tail -15 | while read line; do
+        tail -500 "$LOG_DIR/dataset-worker.log" 2>/dev/null | grep -a -iE "dpo|preference|chosen|rejected|pair" 2>/dev/null | tail -15 | while read line; do
             timestamp=$(echo "$line" | cut -d',' -f1 | sed 's/.*\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\).*/\1/')
 
             if [[ $line =~ chosen ]] || [[ $line =~ best ]]; then
@@ -106,7 +106,7 @@ parse_pipeline_data() {
         done
 
         # Look for file saves
-        tail -500 "$LOG_DIR/dataset-worker.log" | grep -iE "saved|written|created.*file" | tail -5 | while read line; do
+        tail -500 "$LOG_DIR/dataset-worker.log" 2>/dev/null | grep -a -iE "saved|written|created.*file" 2>/dev/null | tail -5 | while read line; do
             timestamp=$(echo "$line" | cut -d',' -f1 | sed 's/.*\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\).*/\1/')
             echo "DPO_PAIR|$timestamp|File Saved|$(echo $line | cut -c1-80)"
         done
