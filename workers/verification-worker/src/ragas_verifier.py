@@ -161,35 +161,88 @@ class RagasVerifier:
     def _heuristic_verification(self, answer: str, contexts: List[str]) -> tuple:
         """
         Heuristic verification (fast, rule-based).
-        
-        Uses basic text analysis:
+
+        Uses basic text analysis with variation:
         - Faithfulness: Word overlap between answer and context
-        - Relevancy: Answer length and "don't know" detection
-        
+        - Relevancy: Answer length, quality indicators, and specificity
+        - Adds variation based on answer characteristics
+
         Returns:
             Tuple of (faithfulness, relevancy)
         """
         logger.debug("Running heuristic verification")
-        
+
         # Check if answer is substantial
         answer_lower = answer.lower()
-        has_substantial_answer = len(answer) > 20 and "don't know" not in answer_lower
-        
+        answer_len = len(answer)
+        has_substantial_answer = answer_len > 20 and "don't know" not in answer_lower
+
         # Check context overlap
         context_text = " ".join(contexts).lower()
         answer_words = set(answer_lower.split())
         context_words = set(context_text.split())
-        
+
         if answer_words:
             overlap_ratio = len(answer_words & context_words) / len(answer_words)
         else:
             overlap_ratio = 0.0
-        
-        # Simple heuristic scores
-        faithfulness = 0.85 if overlap_ratio > 0.3 else 0.50
-        relevancy = 0.85 if has_substantial_answer else 0.30
-        
-        logger.debug(f"Heuristic scores: faithfulness={faithfulness:.3f}, relevancy={relevancy:.3f}")
-        
+
+        # Calculate faithfulness based on context overlap
+        # Higher overlap = more faithful to context
+        if overlap_ratio > 0.5:
+            faithfulness = 0.85 + (overlap_ratio - 0.5) * 0.3  # 0.85-1.0
+        elif overlap_ratio > 0.3:
+            faithfulness = 0.65 + (overlap_ratio - 0.3) * 1.0  # 0.65-0.85
+        else:
+            faithfulness = 0.40 + overlap_ratio * 0.83  # 0.40-0.65
+
+        # Calculate relevancy based on multiple factors
+        base_relevancy = 0.5
+
+        # Factor 1: Answer length (longer = more detailed)
+        if answer_len > 200:
+            length_bonus = 0.25
+        elif answer_len > 100:
+            length_bonus = 0.15
+        elif answer_len > 50:
+            length_bonus = 0.10
+        else:
+            length_bonus = 0.0
+
+        # Factor 2: Quality indicators
+        quality_bonus = 0.0
+        quality_indicators = [
+            "according to", "document", "specifically", "includes",
+            "provides", "describes", "explains", "details"
+        ]
+        for indicator in quality_indicators:
+            if indicator in answer_lower:
+                quality_bonus += 0.03
+        quality_bonus = min(quality_bonus, 0.15)  # Cap at 0.15
+
+        # Factor 3: Negative indicators
+        negative_penalty = 0.0
+        if "not explicitly" in answer_lower or "not mentioned" in answer_lower:
+            negative_penalty = 0.15
+        elif "don't know" in answer_lower or "cannot" in answer_lower:
+            negative_penalty = 0.30
+
+        # Factor 4: Specificity (presence of numbers, technical terms)
+        specificity_bonus = 0.0
+        if any(char.isdigit() for char in answer):
+            specificity_bonus += 0.05
+        if len([w for w in answer_words if len(w) > 8]) > 3:  # Technical terms
+            specificity_bonus += 0.05
+
+        # Calculate final relevancy
+        relevancy = base_relevancy + length_bonus + quality_bonus + specificity_bonus - negative_penalty
+        relevancy = max(0.3, min(1.0, relevancy))  # Clamp between 0.3 and 1.0
+
+        # Ensure faithfulness is also clamped
+        faithfulness = max(0.3, min(1.0, faithfulness))
+
+        logger.debug(f"Heuristic scores: faithfulness={faithfulness:.3f}, relevancy={relevancy:.3f} "
+                    f"(overlap={overlap_ratio:.2f}, len={answer_len}, quality={quality_bonus:.2f})")
+
         return faithfulness, relevancy
 
