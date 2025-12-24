@@ -5,8 +5,8 @@ echo "  RLVR AUTOMATION - RUNPOD STARTUP"
 echo "=========================================="
 echo ""
 
-# Set RabbitMQ URL for localhost
-export RABBITMQ_URL="amqp://guest:guest@localhost:5672/"
+# Set RabbitMQ URL for localhost (using rlvr credentials)
+export RABBITMQ_URL="amqp://rlvr:rlvr_password@localhost:5672/"
 
 # Create log directory
 mkdir -p /workspace/logs
@@ -21,7 +21,7 @@ sleep 2
 echo ""
 echo "2. Starting Verification Worker..."
 cd /workspace/rlvr-automation/workers/verification-worker
-RABBITMQ_URL="amqp://guest:guest@localhost:5672/" \
+RABBITMQ_URL="amqp://rlvr:rlvr_password@localhost:5672/" \
 nohup python -m src.worker > /workspace/logs/verification-worker.log 2>&1 &
 VERIFY_PID=$!
 sleep 3
@@ -39,7 +39,7 @@ fi
 echo ""
 echo "3. Starting Dataset Worker..."
 cd /workspace/rlvr-automation/workers/dataset-generation-worker
-RABBITMQ_URL="amqp://guest:guest@localhost:5672/" \
+RABBITMQ_URL="amqp://rlvr:rlvr_password@localhost:5672/" \
 nohup python -m src.worker > /workspace/logs/dataset-worker.log 2>&1 &
 DATASET_PID=$!
 sleep 3

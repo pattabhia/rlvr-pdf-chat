@@ -77,11 +77,11 @@ echo ""
 echo "7. Starting new verification worker..."
 cd /workspace/rlvr-automation/workers/verification-worker
 
-# Set RabbitMQ URL
-export RABBITMQ_URL="amqp://guest:guest@localhost:5672/"
+# Set RabbitMQ URL (using rlvr credentials)
+export RABBITMQ_URL="amqp://rlvr:rlvr_password@localhost:5672/"
 
 # Start in background with RabbitMQ URL
-RABBITMQ_URL="amqp://guest:guest@localhost:5672/" \
+RABBITMQ_URL="amqp://rlvr:rlvr_password@localhost:5672/" \
 nohup python -m src.worker >> /workspace/logs/verification-worker.log 2>&1 &
 NEW_PID=$!
 
