@@ -121,10 +121,11 @@ class RagasVerifier:
         logger.info("Running RAGAS verification with Ollama")
 
         # Create Ollama LLM
+        # Note: langchain-ollama 0.3.x doesn't support temperature in constructor
+        # It should be passed via model_kwargs or during invocation
         llm = ChatOllama(
             base_url=self.ollama_url,
-            model=self.ollama_model,
-            temperature=0
+            model=self.ollama_model
         )
 
         # Create local embeddings (same as used in QA service)
@@ -142,6 +143,7 @@ class RagasVerifier:
         dataset = Dataset.from_dict(data)
 
         # Run RAGAS evaluation with local embeddings
+        # RAGAS will handle temperature internally
         results = evaluate(
             dataset,
             metrics=[faithfulness, answer_relevancy],
