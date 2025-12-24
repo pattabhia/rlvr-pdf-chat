@@ -278,6 +278,10 @@ async def ask_question_multi_candidate(request: MultiCandidateRequest):
         # Publish events for each candidate if enabled
         events_published = 0
         if request.publish_events and event_publisher:
+            # Generate a unique batch ID for this multi-candidate request
+            import uuid
+            batch_id = str(uuid.uuid4())
+
             for i, candidate in enumerate(candidates):
                 try:
                     event = AnswerGeneratedEvent(
@@ -285,6 +289,10 @@ async def ask_question_multi_candidate(request: MultiCandidateRequest):
                         answer=candidate["answer"],
                         contexts=[ctx["content"] for ctx in candidate["contexts"]],
                         model_name=candidate["metadata"].get("model", "unknown"),
+                        temperature=candidate["metadata"].get("temperature", 0.0),
+                        candidate_index=i,
+                        total_candidates=num_cands,
+                        batch_id=batch_id,
                         sources=[
                             {
                                 "content": ctx["content"],
@@ -302,9 +310,10 @@ async def ask_question_multi_candidate(request: MultiCandidateRequest):
 
                     # Add event_id to candidate metadata
                     candidate["metadata"]["event_id"] = event.event_id
+                    candidate["metadata"]["batch_id"] = batch_id
                     events_published += 1
 
-                    logger.info(f"Published answer.generated event for candidate {i+1}: {event.event_id}")
+                    logger.info(f"Published answer.generated event for candidate {i+1}/{num_cands} (batch={batch_id[:8]}): {event.event_id}")
                 except Exception as e:
                     logger.error(f"Failed to publish event for candidate {i+1}: {e}")
                     # Don't fail the request if event publishing fails

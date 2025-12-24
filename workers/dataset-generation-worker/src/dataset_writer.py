@@ -180,7 +180,10 @@ class DPODatasetWriter:
         self.min_chosen_score = min_chosen_score
         self.enable_quality_filter = enable_quality_filter
 
-        # Store answers by question for DPO pair generation
+        # Store answers by batch_id (for multi-candidate requests)
+        self.answers_by_batch: Dict[str, List[Dict]] = defaultdict(list)
+
+        # Also store by question (for backward compatibility)
         self.answers_by_question: Dict[str, List[Dict]] = defaultdict(list)
 
         # Statistics
@@ -206,12 +209,23 @@ class DPODatasetWriter:
             entry: Complete training entry with verification scores
         """
         question = entry["question"].strip()
+        batch_id = entry.get("batch_id")
+        total_candidates = entry.get("total_candidates")
 
-        # Add to answers for this question
+        # Add to answers for this question (backward compatibility)
         self.answers_by_question[question].append(entry)
 
-        # Try to create DPO pairs
-        self._try_create_dpo_pairs(question)
+        # If this is part of a multi-candidate batch, track by batch_id
+        if batch_id:
+            self.answers_by_batch[batch_id].append(entry)
+
+            # Only try to create DPO pairs when we have all candidates
+            if total_candidates and len(self.answers_by_batch[batch_id]) >= total_candidates:
+                logger.info(f"All {total_candidates} candidates received for batch {batch_id[:8]}, creating DPO pairs...")
+                self._try_create_dpo_pairs_for_batch(batch_id)
+        else:
+            # Single answer or legacy mode - try immediately
+            self._try_create_dpo_pairs(question)
 
     def _is_hedging_answer(self, answer: str) -> bool:
         """
@@ -302,6 +316,28 @@ class DPODatasetWriter:
 
         return 0.0
 
+    def _try_create_dpo_pairs_for_batch(self, batch_id: str) -> None:
+        """
+        Try to create DPO pairs for a multi-candidate batch.
+
+        Args:
+            batch_id: The batch ID to create pairs for
+        """
+        answers = self.answers_by_batch[batch_id]
+
+        if not answers:
+            logger.warning(f"DPO: No answers found for batch {batch_id[:8]}")
+            return
+
+        question = answers[0]["question"]
+        logger.info(f"DPO: Processing batch {batch_id[:8]} with {len(answers)} candidates for '{question[:50]}...'")
+
+        # Use the common logic
+        self._create_dpo_pairs_from_answers(answers, question, f"batch {batch_id[:8]}")
+
+        # Clean up batch after processing
+        del self.answers_by_batch[batch_id]
+
     def _try_create_dpo_pairs(self, question: str) -> None:
         """
         Try to create DPO pairs for a question if we have multiple answers.
@@ -317,6 +353,19 @@ class DPODatasetWriter:
         if len(answers) < 2:
             logger.debug(f"DPO: Only {len(answers)} answer(s) for '{question[:50]}...', need 2+")
             return
+
+        # Use the common logic
+        self._create_dpo_pairs_from_answers(answers, question, f"question")
+
+    def _create_dpo_pairs_from_answers(self, answers: List[Dict], question: str, source: str) -> None:
+        """
+        Common logic to create DPO pairs from a list of answers.
+
+        Args:
+            answers: List of answer entries
+            question: The question
+            source: Description of the source (for logging)
+        """
 
         # Score and filter answers
         scored_answers = [
@@ -341,7 +390,7 @@ class DPODatasetWriter:
         # Check minimum score difference
         score_diff = best_score - worst_score
         logger.info(
-            f"DPO: Question '{question[:50]}...' has {len(scored_answers)} answers, "
+            f"DPO: {source} '{question[:50]}...' has {len(scored_answers)} answers, "
             f"score diff: {score_diff:.3f} (best={best_score:.3f}, worst={worst_score:.3f})"
         )
 

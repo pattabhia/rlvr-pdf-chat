@@ -32,21 +32,26 @@ class AnswerGeneratedEvent(BaseEvent):
     Consumed by: Verification Worker, Reward Computation Worker, Dataset Generation Worker
     """
     event_type: str = "answer.generated"
-    
+
     # Core data
     question: str = ""
     answer: str = ""
     contexts: List[str] = field(default_factory=list)
-    
+
     # Metadata
     request_id: str = ""
     session_id: Optional[str] = None
     model_name: str = ""
     temperature: float = 0.0
-    
+
+    # Multi-candidate metadata (for DPO training)
+    candidate_index: Optional[int] = None  # 0, 1, 2 for 3 candidates
+    total_candidates: Optional[int] = None  # Total number of candidates in this batch
+    batch_id: Optional[str] = None  # Unique ID for this multi-candidate batch
+
     # Sources
     sources: List[Dict[str, Any]] = field(default_factory=list)
-    
+
     # Confidence
     confidence: str = "MEDIUM"  # HIGH, MEDIUM, LOW
 

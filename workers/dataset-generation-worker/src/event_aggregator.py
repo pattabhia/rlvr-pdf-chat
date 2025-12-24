@@ -45,15 +45,15 @@ class EventAggregator:
     def add_answer_generated(self, event) -> Optional[Dict]:
         """
         Add answer.generated event.
-        
+
         Args:
             event: AnswerGeneratedEvent
-            
+
         Returns:
             Complete entry if all events received, None otherwise
         """
         key = self._get_key(event.question, event.answer)
-        
+
         if key not in self.pending_entries:
             self.pending_entries[key] = {
                 "question": event.question,
@@ -63,6 +63,11 @@ class EventAggregator:
                 "sources": event.sources,
                 "timestamp": event.timestamp,
                 "answer_event_id": event.event_id,
+                # Multi-candidate metadata
+                "batch_id": getattr(event, "batch_id", None),
+                "candidate_index": getattr(event, "candidate_index", None),
+                "total_candidates": getattr(event, "total_candidates", None),
+                "temperature": getattr(event, "temperature", None),
             }
         else:
             # Update if not already set
@@ -72,7 +77,11 @@ class EventAggregator:
                 entry["contexts"] = event.contexts
                 entry["model_name"] = event.model_name
                 entry["sources"] = event.sources
-        
+                entry["batch_id"] = getattr(event, "batch_id", None)
+                entry["candidate_index"] = getattr(event, "candidate_index", None)
+                entry["total_candidates"] = getattr(event, "total_candidates", None)
+                entry["temperature"] = getattr(event, "temperature", None)
+
         return self._check_complete(key)
     
     def add_verification_completed(self, event) -> Optional[Dict]:
