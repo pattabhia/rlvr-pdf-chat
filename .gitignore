@@ -22,9 +22,10 @@ venv/
 coverage.xml
 
 # Env / secrets
-.env
-.env.local
-.env.*.local
+# .env files are now tracked for deployment configuration
+# .env
+# .env.local
+# .env.*.local
 
 # Data / artifacts
 qdrant_storage
@@ -59,7 +60,7 @@ preflight-check.sh
 *.md
 test_*.py
 *.svg
-.env.*
+# .env.* - now tracking .env.runpod and .env.runpod.template
 archive/
 DEPLOYMENT_COMPARISON.md
 DOCKER_DEPLOYMENT.md
